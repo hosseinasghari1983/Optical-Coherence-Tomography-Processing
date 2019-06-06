@@ -115,6 +115,13 @@ class Collection:
         self.osc_sig = sig
         self.osc_time = time
 
+    def run():
+        #get scope ready for acquisition
+        #loop:
+        #   send trigger
+        #   read data
+        #   broadcast data
+
 
 if __name__ == '__main__':
     np.set_printoptions(threshold=np.inf)
