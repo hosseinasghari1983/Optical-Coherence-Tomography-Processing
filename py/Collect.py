@@ -6,7 +6,7 @@ import struct
 
 class Collection:
     def __init__(self):
-        self.config = {'ip': '192.168.1.25', 'channels': [1, 0, 0, 0],
+        self.config = {'ip': '10.5.97.239', 'channels': [1, 0, 0, 0],
                        'settings': [[.02, 0, 0, 0], [0, 0, 0, 0], 20e9, 0], 'recordLength': 3e4}
         rm = visa.ResourceManager()
         for n in range(3):
