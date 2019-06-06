@@ -101,10 +101,10 @@ class Collection:
         # self.scope.write('CURVEStream')
         self.scope.write('CURVE?')
         self.ard.write(1)  # To trigger signal generator
-        osc_data = self.scope.read_raw(100)
-        header_len = 2 + int(osc_data[1])
-        waveform = osc_data[header_len:-1]
-        waveform = np.array(struct.unpack('%sB' % len(waveform), waveform))
+        osc_data = self.scope.read_raw(101)
+        # header_len = 2 + int(osc_data[1])
+        # waveform = osc_data[header_len:-1]
+        waveform = np.array(struct.unpack('%sB' % len(osc_data), osc_data))
 
         # print(f'ADC_wave is {ADC_wave} with shape {ADC_wave.shape}')
 
