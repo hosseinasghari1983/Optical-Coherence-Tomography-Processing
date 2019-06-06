@@ -1,16 +1,21 @@
 # This file will pull data from the oscilloscope
 import struct
+import sys
+
 
 import numpy as np
 import visa
 
+import serial
+
 
 class Collection:
     def __init__(self):
+        self.ard = serial.Serial('COM5', 115200)
         scales = [.02, 1, 1, 1]  # set on scope
         y_pos = [0, 0, 0, 0]  # set on scope
-        sample_rate = 20e9
-        self.config = {'ip': '192.168.1.25', 'channels': [1, 0, 0, 0], 'settings': [scales, y_pos, sample_rate, 0],
+        sample_rate = 100e9
+        self.config = {'ip': '10.5.97.239', 'channels': [1, 0, 1, 0], 'settings': [scales, y_pos, sample_rate, 0],
                        'recordLength': 1e3, 'samp_clk_ch': 2, 'data_ch': 1, 'laser_ref_ch': 3, 'frame_count': 100}
         rm = visa.ResourceManager()
         self.connect = False
@@ -20,6 +25,7 @@ class Collection:
                 # print('TCPIP::' + self.config["ip"] + '::inst0::INSTR')
                 self.scope = rm.open_resource('TCPIP::' + self.config["ip"] + '::INSTR', open_timeout=1000)
                 self.connect = True
+                break
             except Exception as e:
                 print(f'{n}: Cannot connect to scope, error: {e}')
                 self.connect = False
@@ -53,12 +59,12 @@ class Collection:
 
         self.scope.write('DATa:WIDTH 1')
         self.scope.write('DATa:ENCdg FAStest')
-        self.encoding = self.scope.query('DATa:ENCdg?')
+        # self.encoding = self.scope.query('DATa:ENCdg?')
         print(f'encoding data type is {self.encoding}')
 
         self.scope.write('HORizontal:MODE:SAMPLERate ' + str(sample_rate))  # Sets sample rate
         self.scope.write('HORizontal:MODE:RECOrdlength ' + str(record_length))  # Number of samples
-        self.config['recordLength'] = self.scope.query("HORizontal:MODE:RECOrdlength?")
+        # self.config['recordLength'] = self.scope.query("HORizontal:MODE:RECOrdlength?")
         # self.scope.write("DATa:STARt 1;stop " + str(record_length) + ";:data:encdg rpbinary;:DESE 1;:*ESE 1")
         self.scope.write('DATa:STARt 1')
         self.scope.write('DATa:STOP ' + str(self.config['recordLength']))
@@ -66,16 +72,16 @@ class Collection:
 
         self.scope.write('HORizontal:FASTframe:STATE ON')
         self.scope.write('HORizontal:FASTframe:SELECTED: SOUrce CH' + str(self.config["data_ch"]))
-        self.scope.write('HORizontal:FASTframe:COUNt ' + self.config['frame_count'])
+        self.scope.write('HORizontal:FASTframe:COUNt ' + str(self.config['frame_count']))
 
     def read_data(self):
         if not self.connect:
             return -1
 
-        y_mult = float(self.scope.query('WFMPRE:YMULT?'))
-        y_zero = float(self.scope.query('WFMPRE:YZERO?'))
-        y_off = float(self.scope.query('WFMPRE:YOFF?'))
-        x_incr = float(self.scope.query('WFMPRE:XINCR?'))
+        # y_mult = float(self.scope.query('WFMPRE:YMULT?'))
+        # y_zero = float(self.scope.query('WFMPRE:YZERO?'))
+        # y_off = float(self.scope.query('WFMPRE:YOFF?'))
+        # x_incr = float(self.scope.query('WFMPRE:XINCR?'))
 
         #     single shot
         # self.scope.write('ACQUIRE:STATE STOP')
@@ -91,28 +97,32 @@ class Collection:
 
         # print('Rel WL process.')
         self.scope.write('DATa:SOUrce CH' + str(self.config["data_ch"]))
-        self.scope.write('DISplay:WAVEform OFF')
+        self.scope.write('DISplay:WAVEform ON')
         # self.scope.write('CURVEStream')
         self.scope.write('CURVE?')
-        osc_data = self.scope.read_raw()
+        self.ard.write(1)  # To trigger signal generator
+        osc_data = self.scope.read_raw(100)
         header_len = 2 + int(osc_data[1])
         waveform = osc_data[header_len:-1]
         waveform = np.array(struct.unpack('%sB' % len(waveform), waveform))
 
         # print(f'ADC_wave is {ADC_wave} with shape {ADC_wave.shape}')
 
-        sig = (waveform - y_off) * y_mult + y_zero
-        time = np.linspace(0, x_incr * len(sig) * 1e9, len(sig))
+        # sig = (waveform - y_off) * y_mult + y_zero
+        # time = np.linspace(0, x_incr * len(sig) * 1e9, len(sig))
+        sig = np.array(waveform)
+        time = [1]
         self.osc_sig = sig
         self.osc_time = time
 
 
 if __name__ == '__main__':
+    np.set_printoptions(threshold=np.inf)
     print('Running.')
     collector = Collection()
     collector.setup_scope()
     collector.read_data()
-    print(f'signal: {collector.osc_sig} \n'
+    print(f'signal: {collector.osc_sig} with shape {len(collector.osc_sig)} \n'
           f'time: {collector.osc_time}\n')
     if collector.connect:
         file = open('lastData.txt', 'w+')
