@@ -1,6 +1,7 @@
-import numpy as np
 import queue
-import py.Collect as Col
+import Collect as col
+import Processing as proc
+import visualize as vis
 
 scales = [.02, 1, 1, 1]  # set on scope
 y_pos = [0, 0, 0, 0]  # set on scope
@@ -11,10 +12,12 @@ config = {'ip': '10.5.97.239', 'channels': [1, 0, 1, 0], 'settings': [scales, y_
 raw_queue = queue.LifoQueue()
 proc_queue = queue.LifoQueue()
 
-collect = Collection(config, raw_queue)
-processing = Processing(config, raw_queue, proc_queue)
-visualize = Visualize(config, proc_queue)
+collect = col.Collection(config, raw_queue)
+processing = proc.Processing(config, raw_queue, proc_queue)
+visualize = vis.Visualize(config, proc_queue)
 
 collect.start()
 processing.start()
-visualize.start()
+visualize.run()
+
+# collect.join()

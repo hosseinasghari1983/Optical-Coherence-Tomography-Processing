@@ -1,32 +1,33 @@
+from threading import Thread
 import matplotlib.pyplot as plt
-import numpy as np
+import threading
 
-class Visualize:
+
+class Visualize(Thread):
     def __init__(self, config, proc_queue):
+        Thread.__init__(self)
         self.proc_queue = proc_queue
         self.config = config
+        self._stopevent = threading.Event()
 
+        # init with frames per second, resolution, etc
 
-        #init with frames per second, resolution, etc
-
-    def run():
-
+    def run(self):
         fig1 = plt.figure(1)
-
-        while not self._stopevent.isSet():
-            #query latest frame from Processing class
-            #rearrange if needed
-            #record it somewhere (for future playback?)
-            #plot it!
+        plt.title('Time domain')
+        plt.ion()
+        while True:
+            # query latest frame from Processing class
+            # rearrange if needed
+            # record it somewhere (for future playback?)
+            # plot it!
             proc = self.proc_queue.get()
-
             plt.imshow(proc, aspect='auto', cmap='jet')
-            plt.title('Time domain')
             plt.draw()
-
-            
+            plt.show()
+            # print(proc)
 
     def join(self, timeout=None):
         """ Stop the thread. """
         self._stopevent.set()
-        threading.Thread.join(self, timeout)       
+        Thread.join(self, timeout)

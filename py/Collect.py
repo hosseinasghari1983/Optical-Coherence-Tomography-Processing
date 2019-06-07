@@ -1,16 +1,18 @@
 # This file will pull data from the oscilloscope
 import struct
-import queue
 from threading import Thread
-
+import threading
 import numpy as np
 import visa
+import time
 
 import serial
 
-class Collection (Thread):
 
+class Collection (Thread):
     def __init__(self, config, raw_queue):
+        Thread.__init__(self)
+        self._stopevent = threading.Event()
         self.raw_queue = raw_queue
 
         self.ard = serial.Serial('COM5', 115200)
@@ -22,7 +24,7 @@ class Collection (Thread):
             try:
                 print(rm.list_resources())
                 # print('TCPIP::' + self.config["ip"] + '::inst0::INSTR')
-                self.scope = rm.open_resource('TCPIP::' + self.config["ip"] + '::INSTR', open_timeout=1000)
+                self.scope = rm.open_resource('TCPIP::' + self.config["ip"] + '::INSTR', open_timeout=10000)
                 self.connect = True
                 break
             except Exception as e:
@@ -60,7 +62,7 @@ class Collection (Thread):
         self.scope.write('DATa:WIDTH 1')
         self.scope.write('DATa:ENCdg FAStest')
         # self.encoding = self.scope.query('DATa:ENCdg?')
-        print(f'encoding data type is {self.encoding}')
+        # print(f'encoding data type is {self.encoding}')
 
         self.scope.write('HORizontal:MODE:SAMPLERate ' + str(sample_rate))  # Sets sample rate
         self.scope.write('HORizontal:MODE:record_length ' + str(record_length))  # Number of samples
@@ -78,16 +80,27 @@ class Collection (Thread):
 
         self.scope.write('ACQUIRE:STATE RUN')
         self.scope.write('ACQUIRE:SAMPLINGMODE RT')
-        self.scope.write('ACQUIRE:STOPAFTER SEQuence')  # Single capture
-        # self.scope.write('ACQUIRE:STOPAFTER RUNSTop')
+        # self.scope.write('ACQUIRE:STOPAFTER SEQuence')
+        self.scope.write("*OPC")
+        self.scope.write("*WAI")
+
+        self.scope.write('ACQUIRE:STOPAFTER RUNSTop')
 
         print('Rel WL process.')
         self.scope.write('DATa:SOUrce CH' + str(self.config["data_ch"]))
-        self.scope.write('DISplay:WAVEform OFF')
-        self.scope.write('CURVEStream?')
+        self.scope.write('DISplay:WAVEform ON')
+        # self.scope.write('CURVE?')
+        time.sleep(1)
 
-        while not self._stopevent.isSet():
+        try:
+            osc_data = self.scope.read_raw(101)
+        except Exception as e:
+            print('Flush curve')
+
+        while True:
+            self.scope.write('CURVE?')
             self.ard.write(1)  # To trigger signal generator
+            print('Sent trigger to ard')
             osc_data = self.scope.read_raw(101)
             waveform = np.array(struct.unpack('%sB' % len(osc_data), osc_data))
             waveform = waveform[8:-1]  # Remove header information
@@ -98,36 +111,33 @@ class Collection (Thread):
             # time = np.linspace(0, x_incr * len(sig) * 1e9, len(sig))
             # sig =
             self.raw_queue.put(waveform)
+            print(f'sent waveform to queue {waveform}')
 
-        self.encoding = self.scope.query('DATa:ENCdg?')
+        # self.encoding = self.scope.query('DATa:ENCdg?')
         #stop curvestream
 
     def join(self, timeout=None):
         """ Stop the thread. """
         self._stopevent.set()
-        threading.Thread.join(self, timeout)
+        Thread.join(self, timeout)
 
-    def print_data(self, q):
-        while True:
-            wave = q.get()
-            print(wave)
 
-if __name__ == '__main__':
-    np.set_printoptions(threshold=np.inf)
-    print('Running.')
-    collector = Collection()
-    # collector.run()
-    for i in range(1):
-        worker = Thread(target=collector.run())
-        worker.setDaemon(True)
-        worker.start()
-    worker2 = Thread(target=collector.print_data(collector.wave_queue))
-
-    print(f'signal: {collector.osc_sig} with shape {len(collector.osc_sig)} \n'
-          f'time: {collector.osc_time}\n')
-    if collector.connect:
-        np.savetxt('lastData.txt', np.array(collector.osc_sig))
-        # file = open('lastData.txt', 'w+')
-        # file.write(f'sig {collector.osc_sig} \r\n\r\n'
-        #            f'time {collector.osc_time}\r\n\r\n')
-        # file.close()
+# if __name__ == '__main__':
+#     np.set_printoptions(threshold=np.inf)
+#     print('Running.')
+#     collector = Collection()
+#     # collector.run()
+#     for i in range(1):
+#         worker = Thread(target=collector.run())
+#         worker.setDaemon(True)
+#         worker.start()
+#     worker2 = Thread(target=collector.print_data(collector.wave_queue))
+#
+#     print(f'signal: {collector.osc_sig} with shape {len(collector.osc_sig)} \n'
+#           f'time: {collector.osc_time}\n')
+#     if collector.connect:
+#         np.savetxt('lastData.txt', np.array(collector.osc_sig))
+#         # file = open('lastData.txt', 'w+')
+#         # file.write(f'sig {collector.osc_sig} \r\n\r\n'
+#         #            f'time {collector.osc_time}\r\n\r\n')
+#         # file.close()
