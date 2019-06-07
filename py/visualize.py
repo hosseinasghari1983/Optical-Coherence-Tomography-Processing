@@ -21,10 +21,11 @@ class Visualize(Thread):
             # rearrange if needed
             # record it somewhere (for future playback?)
             # plot it!
+
             proc = self.proc_queue.get()
-            plt.imshow(proc, aspect='auto', cmap='jet')
-            plt.draw()
-            plt.show()
+            print(self.proc_queue.qsize())
+            plt.imshow(proc[450:550,:], aspect='auto', cmap='jet')
+            plt.pause(0.5)
             # print(proc)
 
     def join(self, timeout=None):

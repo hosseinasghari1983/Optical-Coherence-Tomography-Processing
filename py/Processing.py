@@ -20,7 +20,9 @@ class Processing(Thread):
         while True:
             waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['record_length'])))
             y_time = waveform.copy()
+            print(y_time.shape)
             y_time = np.transpose(np.array(list(map(lambda row: np.real(np.fft.fftshift(np.fft.ifft(row))), y_time))))
+            #y_time = np.transpose(np.array(list(map(lambda row: np.fft.fftshift(np.fft.ifft(row)), y_time))))
             self.proc_queue.put(y_time)
             
         #query last read data from Collect
@@ -28,7 +30,6 @@ class Processing(Thread):
         #perform ifft on each pulse
         #arrange it nicely
         #broadcast result
-
 
     def join(self, timeout=None):
         """ Stop the thread. """

@@ -1,6 +1,7 @@
 # This file will pull data from the oscilloscope
 import struct
 from threading import Thread
+import traceback
 import threading
 import numpy as np
 import visa
@@ -15,7 +16,7 @@ class Collection (Thread):
         self._stopevent = threading.Event()
         self.raw_queue = raw_queue
 
-        self.ard = serial.Serial('COM5', 115200)
+        self.ard = serial.Serial('/dev/ttyACM0', 115200)
         self.config = config
 
         rm = visa.ResourceManager()
@@ -29,6 +30,7 @@ class Collection (Thread):
                 break
             except Exception as e:
                 print(f'{n}: Cannot connect to scope, error: {e}')
+                traceback.print_exc()
                 self.connect = False
         
         self.setup_scope()
@@ -78,13 +80,18 @@ class Collection (Thread):
 
     def run(self):
 
+        try:
+            osc_data = self.scope.read_raw(101)
+        except Exception as e:
+            print('Flush curve')
+
         self.scope.write('ACQUIRE:STATE RUN')
         self.scope.write('ACQUIRE:SAMPLINGMODE RT')
-        # self.scope.write('ACQUIRE:STOPAFTER SEQuence')
+        self.scope.write('ACQUIRE:STOPAFTER SEQuence')
         self.scope.write("*OPC")
         self.scope.write("*WAI")
 
-        self.scope.write('ACQUIRE:STOPAFTER RUNSTop')
+        #self.scope.write('ACQUIRE:STOPAFTER RUNSTop')
 
         print('Rel WL process.')
         self.scope.write('DATa:SOUrce CH' + str(self.config["data_ch"]))
@@ -92,18 +99,20 @@ class Collection (Thread):
         # self.scope.write('CURVE?')
         time.sleep(1)
 
-        try:
-            osc_data = self.scope.read_raw(101)
-        except Exception as e:
-            print('Flush curve')
-
         while True:
-            self.scope.write('CURVE?')
+            #time.sleep(1)
+            self.scope.write('ACQUIRE:STATE RUN')
+            time.sleep(0.25)
             self.ard.write(1)  # To trigger signal generator
+            time.sleep(0.25)
+
+            self.scope.write('CURVE?')
             print('Sent trigger to ard')
             osc_data = self.scope.read_raw(101)
             waveform = np.array(struct.unpack('%sB' % len(osc_data), osc_data))
             waveform = waveform[8:-1]  # Remove header information
+
+            #waveform = np.interp(np.linspace(0,10,200000),np.linspace(0,10,100000),waveform)
 
             # print(f'ADC_wave is {ADC_wave} with shape {ADC_wave.shape}')
 
