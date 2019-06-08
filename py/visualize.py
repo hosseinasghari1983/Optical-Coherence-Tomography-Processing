@@ -1,4 +1,5 @@
 from threading import Thread
+import queue
 import matplotlib.pyplot as plt
 import threading
 
@@ -21,11 +22,14 @@ class Visualize(Thread):
             # rearrange if needed
             # record it somewhere (for future playback?)
             # plot it!
-
-            proc = self.proc_queue.get()
-            print(self.proc_queue.qsize())
-            plt.imshow(proc[450:550,:], aspect='auto', cmap='jet')
-            plt.pause(0.5)
+            try:
+                proc = self.proc_queue.get(False)
+                print(self.proc_queue.qsize())
+                plt.imshow(proc[:,:], aspect='auto', cmap='jet')
+            except queue.Empty:
+                pass
+            plt.pause(0.1)
+            #plt.show()
             # print(proc)
 
     def join(self, timeout=None):

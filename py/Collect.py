@@ -4,6 +4,7 @@ from threading import Thread
 import traceback
 import threading
 import numpy as np
+from scipy import interpolate
 import visa
 import time
 
@@ -62,7 +63,8 @@ class Collection (Thread):
         record_length = self.config['record_length']
 
         self.scope.write('DATa:WIDTH 1')
-        self.scope.write('DATa:ENCdg FAStest')
+        #self.scope.write('DATa:ENCdg FAStest')
+        self.scope.write('DATa:ENCdg RPBinary')
         # self.encoding = self.scope.query('DATa:ENCdg?')
         # print(f'encoding data type is {self.encoding}')
 
@@ -109,10 +111,16 @@ class Collection (Thread):
             self.scope.write('CURVE?')
             print('Sent trigger to ard')
             osc_data = self.scope.read_raw(101)
-            waveform = np.array(struct.unpack('%sB' % len(osc_data), osc_data))
+            #waveform = np.array(struct.unpack('%sB' % len(osc_data), osc_data))
+            waveform = np.frombuffer(osc_data, np.dtype(np.ubyte))
+            #waveform = np.invert(waveform)  #inverting amplifier
             waveform = waveform[8:-1]  # Remove header information
 
-            #waveform = np.interp(np.linspace(0,10,200000),np.linspace(0,10,100000),waveform)
+            pts = self.config['record_length']*self.config['frame_count']
+
+            #waveform = np.interp(np.linspace(0,pts,pts*self.config['interp_factor']),np.linspace(0,pts,pts),waveform)
+            func = interpolate.interp1d(np.linspace(0,pts,pts),waveform,kind='quadratic')
+            waveform = func(np.linspace(0,pts,pts*self.config['interp_factor']))
 
             # print(f'ADC_wave is {ADC_wave} with shape {ADC_wave.shape}')
 
