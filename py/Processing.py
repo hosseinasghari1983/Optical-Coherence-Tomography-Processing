@@ -19,9 +19,11 @@ class Processing(Thread):
         # not self._stopevent.isSet()
         while True:
             waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['record_length']*self.config['interp_factor'])))
+            print("Processing...")
             y_time = waveform.copy()
             print(y_time.shape)
-            y_time = np.transpose(np.array(list(map(lambda row: np.real(np.fft.fftshift(np.fft.ifft(row,n=50000))), y_time))))
+            y_time = np.transpose(np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row,n=10000))), y_time))))
+            print("...Done!")
             #y_time = np.transpose(np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row,n=50000))), y_time))))
             #y_time = np.transpose(np.array(list(map(lambda row: np.real(np.fft.ifft(row)), y_time))))
             #y_time = np.transpose(np.array(list(map(lambda row: np.fft.fftshift(np.fft.ifft(row)), y_time))))

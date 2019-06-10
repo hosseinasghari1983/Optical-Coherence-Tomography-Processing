@@ -1,5 +1,6 @@
 from threading import Thread
 import queue
+import numpy as np
 import matplotlib.pyplot as plt
 import threading
 
@@ -17,15 +18,32 @@ class Visualize(Thread):
         fig1 = plt.figure(1)
         plt.title('Time domain')
         plt.ion()
+        
+        proc = self.proc_queue.get(True)
+        proc[0:5050,:] = 0
+        max = np.amax(proc)
+        proc = proc/max
+        #proc = np.amin(proc,axis=0)
+        #proc = np.reshape(proc,(50,50))
+        objj = plt.imshow(proc[:,:], aspect='auto', cmap='jet')
+
         while True:
+            
             # query latest frame from Processing class
             # rearrange if needed
             # record it somewhere (for future playback?)
             # plot it!
             try:
                 proc = self.proc_queue.get(False)
+                #self.proc_queue.queue.clear()
                 print(self.proc_queue.qsize())
-                plt.imshow(proc[:,:], aspect='auto', cmap='jet')
+                #proc = np.amin(proc,axis=0)
+                #proc = np.reshape(proc,(50,50))
+                proc[0:5050,:] = 0
+                max = np.amax(proc)
+                proc = proc/max
+                objj.set_data(proc[:])
+                plt.draw()
             except queue.Empty:
                 pass
             plt.pause(0.1)
