@@ -1,14 +1,21 @@
-from threading import Thread
 import queue
-import numpy as np
-import matplotlib.pyplot as plt
 import threading
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.cm as cm
+from threading import Thread
+import PyQt5
+# import vtk
+from mayavi import mlab
+# import mayavi as may
+# from mayavi import mlab
+import matplotlib.pyplot as plt
+import matplotlib
+import time
+import numpy as np
 
 
 class Visualize(Thread):
     def __init__(self, config, proc_queue):
+        # matplotlib.use('Qt4Agg')
+        matplotlib.interactive(True)
         Thread.__init__(self)
         self.proc_queue = proc_queue
         self.config = config
@@ -17,78 +24,74 @@ class Visualize(Thread):
         # init with frames per second, resolution, etc
 
     def run(self):
-        # fig1 = plt.figure(1)
-        # plt.title('Time domain')
-        # plt.ion()
-        
+        # self.slices()
+        # self.top_slice()
+        proc = self.proc_queue.get(True)
+        after_fft = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
+        while True:
+            try:
+                proc = self.proc_queue.get(False)
+                after_fft.set_data(proc[:, :])
+                plt.draw()
+            except queue.Empty:
+                pass
+            plt.pause(.1)
+
+    def join(self, timeout=None):
+        """ Stop the thread. """
+        self._stopevent.set()
+        Thread.join(self, timeout)
+
+    def top_slice(self):
+        fig1 = plt.figure(1)
+        plt.title('Top Level Plot')
+        plt.ion()
         proc = self.proc_queue.get(True)
         proc[0:5050, :] = 0
         max_val = np.amax(proc)
-        proc = proc/max_val
-        #  proc = np.amin(proc,axis=0)
-        #  proc = np.reshape(proc,(50,50))
-        # objj = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
-
-
-        # while True:
-        #
-        #     # query latest frame from Processing class
-        #     # rearrange if needed
-        #     # record it somewhere (for future playback?)
-        #     # plot it!
-        #     try:
-        #         proc = self.proc_queue.get(False)
-        #         #  self.proc_queue.queue.clear()
-        #         print(self.proc_queue.qsize())
-        #         #proc = np.amin(proc,axis=0)
-        #         #  proc = np.reshape(proc,(50,50))
-        #         proc[0:5050, :] = 0
-        #         max_val = np.amax(proc)
-        #         proc = proc/max_val
-        #         objj.set_data(proc[:])
-        #         plt.draw()
-        #     except queue.Empty:
-        #         pass
-        #     plt.pause(0.1)
-        #     #plt.show()
-        #     # print(proc)
-
-
-        X = np.arange(0, 50, 1)
-        Y = np.arange(0, 50, 1)
-        X, Y = np.meshgrid(X, Y)
-        Z = np.zeros_like(X)
-        fig3 = plt.figure(3)
-        ax = fig3.gca(projection='3d')
-        m = cm.ScalarMappable(cmap='jet')
-
-        while True:
+        proc = proc / max_val
+        proc = np.amin(proc, axis=0)
+        proc = np.reshape(proc, (47, 47))
+        top_obj = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
+        # run = True
+        while run:
             # query latest frame from Processing class
             # rearrange if needed
             # record it somewhere (for future playback?)
             # plot it!
             try:
                 proc = self.proc_queue.get(False)
-                # ref_max = np.unravel_index(np.argmax(proc, axis=None), proc.shape)[0]
-                # sliced = proc[ref_max + 2:ref_max + 20, :]
-                sliced = proc[5051:, :]
-                max_val = np.amax(sliced)
-                sliced = sliced / max_val
-                data_start = np.unravel_index(np.argmax(sliced, axis=None), sliced.shape)[0]
-                count = 0
-                for row in sliced[data_start:int(data_start + 4)]:
-                    row = np.reshape(row, (50, 50))
-                    ax.plot_surface(X, Y, Z+count*.1, rstride=1, cstride=1, facecolors=m.set_array(row))
-                    count += 1
-
+                proc = np.amax(proc, axis=0)
+                proc = np.reshape(proc, (50, 50))
+                proc[0:5050, :] = 0
+                max_val = np.amax(proc)
+                proc = proc / max_val
+                top_obj.set_data(proc[:])
                 plt.draw()
-
             except queue.Empty:
                 pass
             plt.pause(0.1)
+            run = False
 
+    def slices(self):
+        proc = self.proc_queue.get(True)
+        proc = proc[5051:5072, :]
+        proc = np.reshape(proc, (50, 50, 20))
+        print(f'3d array: {proc}')
+        mlab.volume_slice(proc)
+        mlab.show()
+        while True:
+            try:
+                proc = self.proc_queue.get(False)
+                proc = proc[5051:5072, :]
+                proc = np.reshape(proc, (50, 50, 20))
+                mlab.volume_slice(proc)
+                mlab.show()
+            except queue.Empty:
+                pass
+            time.sleep(.05)
 
-    def join(self, timeout=None):
-        """ Stop the thread. """
-        self._stopevent.set()
-        Thread.join(self, timeout)
+    def cut_data(self):
+        proc = self.proc_queue.get(True)
+        ref_max = np.unravel_index(np.argmax(proc, axis=None), proc.shape)[0]
+        return proc[ref_max + 2:ref_max + 22, :]

@@ -1,14 +1,16 @@
 import queue
 import Collect as col
 import Processing as proc
-import visualize as vis
+import Visualize as vis
 
 scales = [.02, 1, 1, 1]  # set on scope
 y_pos = [0, 0, 0, 0]  # set on scope
-sample_rate = 12.5e9
+sample_rate = 25e6
 #'10.5.97.239'
 config = {'ip': '192.168.0.2', 'channels': [1, 0, 0, 0], 'settings': [scales, y_pos, sample_rate, 0],
-          'record_length': 1000, 'samp_clk_ch': 2, 'data_ch': 1, 'laser_ref_ch': 3, 'frame_count': 2500, 'interp_factor':1}
+          'record_length': 5e5, 'samp_clk_ch': 2, 'data_ch': 1, 'laser_ref_ch': 3, 'frame_count': 2500,
+          'interp_factor': 1, 'win_ard': 'COM5', 'frame_length': 200}
+# frame length is record_length / frame_count
 
 raw_queue = queue.LifoQueue()
 proc_queue = queue.LifoQueue()
