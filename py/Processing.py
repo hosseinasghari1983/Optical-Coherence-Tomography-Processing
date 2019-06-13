@@ -1,53 +1,61 @@
 import numpy as np
+import pyfftw
 from threading import Thread
 import threading
+import multiprocessing
 import time
+import matplotlib.pyplot as plt
+from scipy import interpolate
 
 
 class Processing(Thread):
 
     def __init__(self, config, raw_queue, proc_queue):
         Thread.__init__(self)
-        self.period = config['settings'][2] * 8000
+        # self.period = config['settings'][2] * 8000
+        self.period = 200
         self.raw_queue = raw_queue
         self.proc_queue = proc_queue
         self.config = config
         self._stopevent = threading.Event()
+        pyfftw.config.NUM_THREADS = multiprocessing.cpu_count()
+        np.fft = pyfftw.interfaces.numpy_fft
+        pyfftw.interfaces.cache.enable()
         #init with frames per second, resolution, etc
 
     def run(self):
         # not self._stopevent.isSet()
         run = True
+        pts = self.config['frame_length'] * self.config['frame_count']
         while run:
             # waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['record_length']*self.config['interp_factor'])))
             # waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['frame_length']*self.config['interp_factor'])))
-            waveform = self.framing(self.raw_queue.get())
-            with self.raw_queue.mutex:
-                self.raw_queue.queue.clear()
+
             print("Processing...")
-            y_time = waveform.copy()
-            print(y_time.shape)
-
             t = time.time()
+            waveform = self.raw_queue.get()
+            func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
+            waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
+            waveform = self.framing(waveform)
 
-            y_time = list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row, n=10000))), y_time))
+            # with self.raw_queue.mutex:
+            #     self.raw_queue.queue.clear()
+            # waveform = np.copy(waveform)
+            # print(waveform.shape)
+            #
 
-            # for i in range(len(y_time)):
-            #     y_time[i] = np.absolute(np.fft.fftshift(np.fft.ifft(y_time[i], n=10000)))
+            # waveform = list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row, n=10000))), waveform))
+            waveform = np.array([[np.absolute(np.fft.ifft(pulse))] for pulse in waveform])
 
             elapsed = time.time() - t
 
-            y_time = np.transpose(np.array(y_time))
+            waveform = np.transpose(waveform)
 
             print("...Done!")
 
-
             print(f'\r\n Processing took {elapsed} seconds. \r\n')
 
-            #y_time = np.transpose(np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row,n=50000))), y_time))))
-            #y_time = np.transpose(np.array(list(map(lambda row: np.real(np.fft.ifft(row)), y_time))))
-            #y_time = np.transpose(np.array(list(map(lambda row: np.fft.fftshift(np.fft.ifft(row)), y_time))))
-            self.proc_queue.put(y_time)
+            self.proc_queue.put(waveform)
             # run = False
         #query last read data from Collect
         #frame it according to sample size, resolution
@@ -69,24 +77,22 @@ class Processing(Thread):
         spns = self.config['settings'][2]  # 100Gs/s, or 100 samples per nanosecond
         period = self.period  # initial period guess, in sample units
 
-        ahead = waveform[0:int(period * 15)]  # seek forward two and something periods
+        ahead = waveform[0:int(period * 4.5)]  # seek forward two and something periods
 
         # fig1 = plt.figure(22)
+        # plt.clf()
         # plt.title("First Two")
         # plt.plot(ahead)
-        #
 
         max = np.argmax(ahead)
         min = np.argmin(ahead)
 
         span = ahead[max] - ahead[min]
 
-        maxes = np.argwhere(ahead > (ahead[max] - span * 0.2))  # 20% tolerance for max, as fringes can change rapidly
-        mins = np.argwhere(ahead < (ahead[
-                                        min] + span * 0.1))  # 10% tolerance for mins, pulses expected to return to the same level each cycle
+        maxes = np.argwhere(ahead > (ahead[max] - span * 0.35))  # 20% tolerance for max, as fringes can change rapidly
+        mins = np.argwhere(ahead < (ahead[min] + span * 0.25))  # 10% tolerance for mins, pulses expected to return to the same level each cycle
 
-        initialMax = maxes[
-            0, 0]  # make sure we start from a peak, this guarantess that the next minimum is a full valley, not truncated at the beggining
+        initialMax = maxes[0,0]  # make sure we start from a peak, this guarantess that the next minimum is a full valley, not truncated at the beggining
 
         ffirstMin = mins[np.searchsorted(mins[:, 0], initialMax), 0]  # first of the first min group
         firstMax = maxes[np.searchsorted(maxes[:, 0], ffirstMin), 0]  # first max after this min group
@@ -140,16 +146,18 @@ class Processing(Thread):
             nextMin = areaStart + self.seekMin(area, span)
             period = (nextMin - firstMin) / n
             self.period = period
-            print("Period:" + str(period))
+            # print("Period:" + str(period))
 
-            n = n * n
+            n += n
 
-        # plt.draw()
+        # plt.pause(1)
+        # # plt.savefig()
         # plt.show()
 
         # time_array = np.linspace(0, period / spns, period)
 
         nSlices = int(len(signal) / period)
+        print(f'periods in wave {len(signal) / period}')
         intPeriod = int(period)
         y_array = np.zeros((nSlices, intPeriod))
 
@@ -157,9 +165,6 @@ class Processing(Thread):
             start = int(
                 i * period)  # note that one value may be lost every now and then, as the period is not an integer number of samples. this is done to make sure all rows have the same number of columns
             y_array[i, :] = signal[start:(start + intPeriod)]
-
-        # y_time = y_array.copy()
-        # y_time = np.transpose(np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row))), y_time))))
 
         return y_array
 

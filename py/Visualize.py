@@ -7,7 +7,7 @@ from mayavi import mlab
 # import mayavi as may
 # from mayavi import mlab
 import matplotlib.pyplot as plt
-import matplotlib
+# import matplotlib
 import time
 import numpy as np
 
@@ -15,7 +15,7 @@ import numpy as np
 class Visualize(Thread):
     def __init__(self, config, proc_queue):
         # matplotlib.use('Qt4Agg')
-        matplotlib.interactive(True)
+        # matplotlib.interactive(True)
         Thread.__init__(self)
         self.proc_queue = proc_queue
         self.config = config
@@ -35,7 +35,11 @@ class Visualize(Thread):
                 plt.draw()
             except queue.Empty:
                 pass
-            plt.pause(.1)
+            plt.pause(.2)
+
+        # mlab.test_contour3d()
+        # mlab.show()
+        # time.sleep(3)
 
     def join(self, timeout=None):
         """ Stop the thread. """
@@ -50,28 +54,34 @@ class Visualize(Thread):
         proc[0:5050, :] = 0
         max_val = np.amax(proc)
         proc = proc / max_val
-        proc = np.amin(proc, axis=0)
-        proc = np.reshape(proc, (47, 47))
+        proc = np.amax(proc, axis=0)
+        proc = np.reshape(proc[-1:-2304], (48, 48))
         top_obj = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
-        # run = True
+        run = True
+        count = 0
         while run:
             # query latest frame from Processing class
             # rearrange if needed
             # record it somewhere (for future playback?)
             # plot it!
             try:
+                im_name = 'top' + str(count)
                 proc = self.proc_queue.get(False)
                 proc = np.amax(proc, axis=0)
-                proc = np.reshape(proc, (50, 50))
+                proc = np.reshape(proc[:2304], (48, 48))
                 proc[0:5050, :] = 0
                 max_val = np.amax(proc)
+
                 proc = proc / max_val
-                top_obj.set_data(proc[:])
+                print(f'with max_val {max_val}')
+                top_obj.set_data(proc[:2304])
+                # plt.savefig(f'temp/{im_name}', bbox_inches='tight')
+                count += 1
                 plt.draw()
             except queue.Empty:
                 pass
-            plt.pause(0.1)
-            run = False
+            plt.pause(0.7)
+            # run = False
 
     def slices(self):
         proc = self.proc_queue.get(True)
