@@ -3,7 +3,7 @@ import threading
 import time
 import traceback
 from threading import Thread
-
+import matplotlib.pyplot as plt
 import numpy as np
 import visa
 
@@ -25,7 +25,7 @@ class Collection(Thread):
             try:
                 print(rm.list_resources())
                 # print('TCPIP::' + self.config["ip"] + '::inst0::INSTR')
-                self.scope = rm.open_resource('TCPIP::' + self.config["ip"] + '::INSTR', open_timeout=10000)
+                self.scope = rm.open_resource('TCPIP::' + self.config["ip"] + '::INSTR', open_timeout=1000)
                 self.connect = True
                 break
             except Exception as e:
@@ -105,11 +105,14 @@ class Collection(Thread):
 
         print('Rel WL process.')
         self.scope.write('DATa:SOUrce CH' + str(self.config["data_ch"]))
-        self.scope.write('DISplay:WAVEform ON')
+        self.scope.write('DISplay:WAVEform OFF')
         # self.scope.timeout = 10
 
         # del self.scope.timeout
-        # self.scope.write('CURVEStream?')
+        self.scope.write('MASK:COUNt RESET')
+        self.scope.write('CURVE?')
+        self.scope.write('CURVE?')
+
         time.sleep(1)
 
         # visa.log_to_screen()
@@ -118,27 +121,32 @@ class Collection(Thread):
         run = True
         count = 0
         while run:
+            ti = time.time()
             # time.sleep(1)
             # self.scope.write('ACQUIRE:STATE RUN')
             # time.sleep(0.25)
 
             # print('Sent trigger to ard')
             # time.sleep(0.1)
+            osc_data = self.scope.read_raw(None)  # int(self.config['frame_count']*self.config['record_length']))
             self.scope.write('CURVE?')
 
             # time.sleep(0.1)
             # self.ard.write(1)  # To trigger signal generator
-            osc_data = self.scope.read_raw(None)  # int(self.config['frame_count']*self.config['record_length']))
-            # osc_data = self.scope.read_bytes(int(self.config['frame_count']*self.config['record_length'])+9)
+            # osc_data = self.scope.read_bytes(int(self.config['record_length'])+8)
 
             # print('Read from scope')
             # print('length of osc_data'+str(len(osc_data)))
             # waveform = np.array(struct.unpack('%sB' % len(osc_data), osc_data))
             waveform = np.frombuffer(osc_data, np.dtype(np.ubyte))
+            # fig2 = plt.figure(8)
+            # plt.plot(waveform)
+            # plt.clf()
+            # plt.show()
             # waveform = np.invert(waveform)  #inverting amplifier
             waveform = waveform[8:-1]  # Remove header information, first 8, last 1
-            # print(waveform)
-            # print(waveform.shape)
+            print(waveform)
+            print(waveform.shape)
 
             # print(f'waveform shape before interp {waveform.shape}')
 
@@ -153,9 +161,14 @@ class Collection(Thread):
             # sig =
             # print(f'waveform shape {waveform.shape}')
             self.raw_queue.put(waveform)
+            print(f'it took: {time.time() - ti}')
+
+            print(f'Put in raw queue, size: {self.raw_queue.qsize()}')
             # print(f'The raw queue is: {self.raw_queue.qsize()}')
             count += 1
-            run = True if count < 50 else False
+            # run = True if count < 50 else False
+
+        # self.scope.query('WFMOutpre:YMUlt?')
             # run = False
             # print(f'sent waveform to queue {waveform}')
             # time.sleep(0.1)

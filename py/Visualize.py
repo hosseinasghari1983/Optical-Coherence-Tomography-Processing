@@ -12,6 +12,11 @@ import time
 import numpy as np
 
 
+def cut_data(proc, layers):
+    ref_max = np.unravel_index(np.argmax(proc, axis=None), proc.shape)[0]
+    return proc[ref_max + 10:ref_max + 10 + layers, :]
+
+
 class Visualize(Thread):
     def __init__(self, config, proc_queue):
         # matplotlib.use('Qt4Agg')
@@ -24,27 +29,25 @@ class Visualize(Thread):
         # init with frames per second, resolution, etc
 
     def run(self):
-        # self.slices()
-        # self.top_slice()
-        proc = self.proc_queue.get(True)
-        after_fft = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
+        # proc = self.proc_queue.get(True)
+        self.plot_4d()
+        # After FFT PLOT
+        # plt.figure(25)
+
+    def after_fft(self):
+        proc = self.proc_queue.get(True)[21:1000, :]
+        # proc = cut_data(proc, 20)
+        print(f'first proc is {proc.shape}')
+        after_fft = plt.imshow(proc, aspect='auto', cmap='jet')
         while True:
             try:
-                proc = self.proc_queue.get(False)
-                after_fft.set_data(proc[:, :])
+                proc = self.proc_queue.get(False)[21:1000, :]
+                # proc = cut_data(proc, 20)
+                after_fft.set_data(proc)
                 plt.draw()
             except queue.Empty:
                 pass
-            plt.pause(.2)
-
-        # mlab.test_contour3d()
-        # mlab.show()
-        # time.sleep(3)
-
-    def join(self, timeout=None):
-        """ Stop the thread. """
-        self._stopevent.set()
-        Thread.join(self, timeout)
+            plt.pause(.05)
 
     def top_slice(self):
         fig1 = plt.figure(1)
@@ -83,25 +86,37 @@ class Visualize(Thread):
             plt.pause(0.7)
             # run = False
 
-    def slices(self):
-        proc = self.proc_queue.get(True)
-        proc = proc[5051:5072, :]
-        proc = np.reshape(proc, (50, 50, 20))
-        print(f'3d array: {proc}')
-        mlab.volume_slice(proc)
-        mlab.show()
-        while True:
-            try:
-                proc = self.proc_queue.get(False)
-                proc = proc[5051:5072, :]
-                proc = np.reshape(proc, (50, 50, 20))
-                mlab.volume_slice(proc)
-                mlab.show()
-            except queue.Empty:
-                pass
-            time.sleep(.05)
+    def plot_4d(self):
+        s = self.proc_queue.get(True)[:, :, 200:650]
 
-    def cut_data(self):
-        proc = self.proc_queue.get(True)
-        ref_max = np.unravel_index(np.argmax(proc, axis=None), proc.shape)[0]
-        return proc[ref_max + 2:ref_max + 22, :]
+        # s = cut_data(s, 20)
+        plane = mlab.pipeline.image_plane_widget(mlab.pipeline.scalar_field(s),
+                                                 plane_orientation='z_axes',
+                                                 slice_index=425,
+                                                 )
+
+        # mlab.volume_slice(s, plane_orientation='z_axes', slice_index=10)
+
+        vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(s))
+        mlab.outline()
+
+        @mlab.animate(delay=500)
+        def anim():
+            global s
+            while True:
+                try:
+                    s = self.proc_queue.get(False)[:, :, 200:650]
+                    # s = cut_data(s, 20)
+                    plane.mlab_source.scalars = s
+                    vol.mlab_source.scalars = s
+                    yield
+                except queue.Empty:
+                    pass
+                time.sleep(.5)
+        anim()
+        mlab.show()
+
+    def join(self, timeout=None):
+        """ Stop the thread. """
+        self._stopevent.set()
+        Thread.join(self, timeout)
