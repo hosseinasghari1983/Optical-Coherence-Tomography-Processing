@@ -23,8 +23,8 @@ class Visualize(Thread):
         proc[0:5050,:] = 0
         max = np.amax(proc)
         proc = proc/max
-        #proc = np.amin(proc,axis=0)
-        #proc = np.reshape(proc,(50,50))
+        proc = np.amax(proc,axis=0)
+        proc = np.reshape(proc,(50,50))
         objj = plt.imshow(proc[:,:], aspect='auto', cmap='jet')
 
         while True:
@@ -37,11 +37,12 @@ class Visualize(Thread):
                 proc = self.proc_queue.get(False)
                 #self.proc_queue.queue.clear()
                 print(self.proc_queue.qsize())
-                #proc = np.amin(proc,axis=0)
-                #proc = np.reshape(proc,(50,50))
+
                 proc[0:5050,:] = 0
                 max = np.amax(proc)
                 proc = proc/max
+                proc = np.amax(proc,axis=0)
+                proc = np.reshape(proc,(50,50))
                 objj.set_data(proc[:])
                 plt.draw()
             except queue.Empty:
