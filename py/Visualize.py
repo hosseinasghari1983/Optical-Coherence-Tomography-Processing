@@ -31,36 +31,41 @@ class Visualize(Thread):
 
     def run(self):
         # proc = self.proc_queue.get(True)
-        self.plot_4d()
+        # self.plot_4d()
+        # self.after_fft()
+        self.top_slice()
         # After FFT PLOT
         # plt.figure(25)
 
     def after_fft(self):
-        proc = self.proc_queue.get(True)[21:1000, :]
+        proc = self.proc_queue.get(True)[0,:,25:1000]
         # proc = cut_data(proc, 20)
         print(f'first proc is {proc.shape}')
         after_fft = plt.imshow(proc, aspect='auto', cmap='jet')
+        slice = 0
         while True:
             try:
-                proc = self.proc_queue.get(False)[21:1000, :]
+                proc = self.proc_queue.get(False)[slice,:,25:1000]
                 # proc = cut_data(proc, 20)
                 after_fft.set_data(proc)
                 plt.draw()
             except queue.Empty:
                 pass
             plt.pause(.05)
+            slice += 1
+            slice = slice%50
 
     def top_slice(self):
         fig1 = plt.figure(1)
         plt.title('Top Level Plot')
         plt.ion()
         proc = self.proc_queue.get(True)
-        proc[0:5050, :] = 0
-        max_val = np.amax(proc)
-        proc = proc / max_val
-        proc = np.amax(proc, axis=0)
-        proc = np.reshape(proc[-1:-2304], (48, 48))
-        top_obj = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
+        proc[:,:,1000:]=0
+        proc[:,:,0:25] = 0
+        #max_val = np.amax(proc)
+        #proc = proc / max_val
+        proc = np.argmin(proc, axis=2)
+        top_obj = plt.imshow(proc[:,:], aspect='auto', cmap='jet')
         run = True
         count = 0
         while run:
@@ -71,20 +76,22 @@ class Visualize(Thread):
             try:
                 im_name = 'top' + str(count)
                 proc = self.proc_queue.get(False)
-                proc = np.amax(proc, axis=0)
-                proc = np.reshape(proc[:2304], (48, 48))
-                proc[0:5050, :] = 0
-                max_val = np.amax(proc)
+                proc[:,:,1000:]=0
+                proc[:,:, 0:25] = 0
 
-                proc = proc / max_val
-                print(f'with max_val {max_val}')
-                top_obj.set_data(proc[:2304])
+                proc = np.argmin(proc, axis=2)
+                
+                #max_val = np.amax(proc)
+
+                #proc = proc / max_val
+                #print(f'with max_val {max_val}')
+                top_obj.set_data(proc[:,:])
                 # plt.savefig(f'temp/{im_name}', bbox_inches='tight')
                 count += 1
                 plt.draw()
             except queue.Empty:
                 pass
-            plt.pause(0.7)
+            plt.pause(0.1)
             # run = False
 
     def plot_4d(self):
@@ -96,24 +103,31 @@ class Visualize(Thread):
                                                  slice_index=425,
                                                  )
 
+        plane_y = mlab.pipeline.image_plane_widget(mlab.pipeline.scalar_field(s),
+                                                 plane_orientation='y_axes',
+                                                 slice_index=25,
+                                                 )
+
         # mlab.volume_slice(s, plane_orientation='z_axes', slice_index=10)
 
         vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(s))
+
         mlab.outline()
 
-        @mlab.animate(delay=500)
+        @mlab.animate(delay=250)
         def anim():
             global s
             while True:
                 try:
                     s = self.proc_queue.get(False)[:, :, 200:650]
                     # s = cut_data(s, 20)
+                    plane_y.mlab_source.scalars = s
                     plane.mlab_source.scalars = s
                     vol.mlab_source.scalars = s
                     yield
                 except queue.Empty:
                     pass
-                time.sleep(.5)
+                time.sleep(.25)
         anim()
         mlab.show()
 

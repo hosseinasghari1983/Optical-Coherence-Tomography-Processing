@@ -58,7 +58,7 @@ class Processing(Thread):
             # print(waveform.shape)
             #
 
-            waveform = np.absolute(np.fft.ifft(waveform, axis=2, n=2000))  # Use this one
+            waveform = np.real(np.fft.ifft(waveform, axis=2, n=2000))  # Use this one
 
             # waveform = np.array([np.absolute(np.fft.ifft(pulse)) for pulse in waveform])
             # waveform = np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row, n=1000))), waveform)))
@@ -180,20 +180,55 @@ class Processing(Thread):
         print(f'periods in wave {len(signal) / period}')
         intPeriod = int(period)
         # y_array = np.zeros((nSlices, intPeriod))
-        y_array = np.zeros((50, 50, intPeriod))
+        y_array = np.zeros((51, 50, intPeriod))
 
         # for i in range(nSlices):  # save each slice as row
         #     start = int(i * period)  # note that one value may be lost every now and then, as the period is not an integer number of samples. this is done to make sure all rows have the same number of columns
         #     y_array[i, :] = signal[start:(start + intPeriod)]
 
         # fill = time.time()
-        for row in range(1, 51):
-            for col in range(50):
-                start = int(row * col * period)
-                line_end = 10000 * row
-                if start < line_end and (start + intPeriod) > line_end or (start + intPeriod) > len(signal):
-                    break
-                y_array[row - 1, col, :] = signal[start: (start + intPeriod)]
+        startPulse = int(nSlices/100)
+
+        # for p in range(startPulse,nSlices-startPulse):
+        #     start = int(p * period)
+        #     lineN = int(p/50 - 0.5)
+        #     col = (p-startPulse)%(2*startPulse)
+
+        #     if lineN % 2 == 1:
+        #         col = 2*startPulse - col
+
+        #     y_array[lineN,col,:] = signal[start: (start + intPeriod)]
+
+        pulsesPerLine = nSlices/50
+
+        for p in range(0,nSlices):
+            start = int(p * period)
+            rowN = int(p/pulsesPerLine)
+            col = p - int(rowN*pulsesPerLine)
+            y_array[rowN, col, :] = signal[start:(start + intPeriod)]
+
+        # for row in range(49):
+        #     for col in range(50):
+        #         p = row*int(nSlices/49) + col + startPulse
+        #         start = int(p*period)
+
+        #         line_end = 10000 * (row+1) + 5000
+        #         if start < line_end and (start + intPeriod) > line_end or (start + intPeriod) > len(signal)-startPulse:
+        #             break
+
+        #         if row%2 == 1:
+        #             y_array[row, 47-col, :] = signal[start: (start + intPeriod)]
+        #         else:
+        #             y_array[row, col, :] = signal[start: (start + intPeriod)]
+
+
+        # for row in range(1, 51):
+        #     for col in range(50):
+        #         start = int(row * col * period)
+        #         line_end = 10000 * row
+        #         if start < line_end and (start + intPeriod) > line_end or (start + intPeriod) > len(signal):
+        #             break
+        #         y_array[row - 1, col, :] = signal[start: (start + intPeriod)]
         # print(f'filling data took: {fill - time.time()} seconds')
         return y_array
 
