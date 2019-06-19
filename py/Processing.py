@@ -1,10 +1,8 @@
-import numpy as np
-from threading import Thread
 import threading
-import multiprocessing
 import time
-import matplotlib.pyplot as plt
-from scipy import interpolate
+from threading import Thread
+
+import numpy as np
 
 #GPU FFT STUFF
 #from reikna.fft import FFT
@@ -22,17 +20,24 @@ class Processing(Thread):
         self.framed_queue = framed_queue
         self.config = config
         self._stopevent = threading.Event()
-        #init with frames per second, resolution, etc
+        self.wisdom = True
+
+        # init with frames per second, resolution, etc
 
     def run(self):
-        # not self._stopevent.isSet()
+        # pyfftw.config.NUM_THREADS = multiprocessing.cpu_count()
+        # np.fft = pyfftw.interfaces.numpy_fft
+        # pyfftw.interfaces.cache.enable()
         run = True
         while run:
             # waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['record_length']*self.config['interp_factor'])))
             # waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['frame_length']*self.config['interp_factor'])))
+            # if self.wisdom:
+            #     self.wisdom = True
+            # else:
+            #     pyfftw.import_wisdom(self.wisdom)
 
             print("Processing...")
-            t = time.time()
             waveform = self.raw_queue.get()
 
             if self.config['interp_factor'] > 1:
@@ -40,6 +45,10 @@ class Processing(Thread):
                 func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
                 waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
 
+            t = time.time()
+
+            # func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
+            # waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
             waveform = self.framing(waveform)
 
             self.framed_queue.put(waveform)
@@ -49,24 +58,28 @@ class Processing(Thread):
             # print(waveform.shape)
             #
 
-            # waveform = list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row, n=10000))), waveform))
-            waveform = np.array([[np.absolute(np.fft.ifft(pulse))] for pulse in waveform])
+            waveform = np.absolute(np.fft.ifft(waveform, axis=2, n=2000))  # Use this one
 
+            # waveform = np.array([np.absolute(np.fft.ifft(pulse)) for pulse in waveform])
+            # waveform = np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row, n=1000))), waveform)))
+
+            # waveform = np.transpose(waveform)
             elapsed = time.time() - t
-
-            waveform = np.transpose(waveform)
 
             print("...Done!")
 
             print(f'\r\n Processing took {elapsed} seconds. \r\n')
 
+            # if self.wisdom:
+            #     self.wisdom = pyfftw.export_wisdom()
+
             self.proc_queue.put(waveform)
             # run = False
-        #query last read data from Collect
-        #frame it according to sample size, resolution
-        #perform ifft on each pulse
-        #arrange it nicely
-        #broadcast result
+        # query last read data from Collect
+        # frame it according to sample size, resolution
+        # perform ifft on each pulse
+        # arrange it nicely
+        # broadcast result
 
     def join(self, timeout=None):
         """ Stop the thread. """
@@ -74,15 +87,14 @@ class Processing(Thread):
         Thread.join(self, timeout)
 
     def framing(self, waveform):
-        length = waveform.size
+        # length = waveform.size
         # print(waveform.time[1] - waveform.time[0])
-
         # USING NANOSECONDS AS UNITS
+        # spns = self.config['settings'][2]  # 100Gs/s, or 100 samples per nanosecond
 
-        spns = self.config['settings'][2]  # 100Gs/s, or 100 samples per nanosecond
         period = self.period  # initial period guess, in sample units
 
-        ahead = waveform[0:int(period * 4.5)]  # seek forward two and something periods
+        ahead = waveform[0:int(period * 5.5)]  # seek forward two and something periods
 
         # fig1 = plt.figure(22)
         # plt.clf()
@@ -94,10 +106,12 @@ class Processing(Thread):
 
         span = ahead[max] - ahead[min]
 
-        maxes = np.argwhere(ahead > (ahead[max] - span * 0.35))  # 20% tolerance for max, as fringes can change rapidly
-        mins = np.argwhere(ahead < (ahead[min] + span * 0.25))  # 10% tolerance for mins, pulses expected to return to the same level each cycle
+        maxes = np.argwhere(ahead > (ahead[max] - span * 0.25))  # 20% tolerance for max, as fringes can change rapidly
+        mins = np.argwhere(ahead < (ahead[
+                                        min] + span * 0.15))  # 10% tolerance for mins, pulses expected to return to the same level each cycle
 
-        initialMax = maxes[0,0]  # make sure we start from a peak, this guarantess that the next minimum is a full valley, not truncated at the beggining
+        initialMax = maxes[
+            0, 0]  # make sure we start from a peak, this guarantess that the next minimum is a full valley, not truncated at the beggining
 
         ffirstMin = mins[np.searchsorted(mins[:, 0], initialMax), 0]  # first of the first min group
         firstMax = maxes[np.searchsorted(maxes[:, 0], ffirstMin), 0]  # first max after this min group
@@ -148,15 +162,16 @@ class Processing(Thread):
                 jumping = False
 
             area = signal[areaStart:areaEnd]
-            nextMin = areaStart + self.seekMin(area, span)
+            nextMin = areaStart + self.seek_min(area, span)
             period = (nextMin - firstMin) / n
             self.period = period
-            # print("Period:" + str(period))
+            print("Period:" + str(period))
 
             n += n
 
-        # plt.pause(1)
+        # # plt.pause(.1)
         # # plt.savefig()
+        # plt.draw()
         # plt.show()
 
         # time_array = np.linspace(0, period / spns, period)
@@ -164,16 +179,25 @@ class Processing(Thread):
         nSlices = int(len(signal) / period)
         print(f'periods in wave {len(signal) / period}')
         intPeriod = int(period)
-        y_array = np.zeros((nSlices, intPeriod))
+        # y_array = np.zeros((nSlices, intPeriod))
+        y_array = np.zeros((50, 50, intPeriod))
 
-        for i in range(nSlices):  # save each slice as row
-            start = int(
-                i * period)  # note that one value may be lost every now and then, as the period is not an integer number of samples. this is done to make sure all rows have the same number of columns
-            y_array[i, :] = signal[start:(start + intPeriod)]
+        # for i in range(nSlices):  # save each slice as row
+        #     start = int(i * period)  # note that one value may be lost every now and then, as the period is not an integer number of samples. this is done to make sure all rows have the same number of columns
+        #     y_array[i, :] = signal[start:(start + intPeriod)]
 
+        # fill = time.time()
+        for row in range(1, 51):
+            for col in range(50):
+                start = int(row * col * period)
+                line_end = 10000 * row
+                if start < line_end and (start + intPeriod) > line_end or (start + intPeriod) > len(signal):
+                    break
+                y_array[row - 1, col, :] = signal[start: (start + intPeriod)]
+        # print(f'filling data took: {fill - time.time()} seconds')
         return y_array
 
-    def seekMin(self, area, span):
+    def seek_min(self, area, span):
         min = np.argmin(area)
         mins = np.argwhere(area < (area[
                                        min] + span * 0.1))  # 10% tolerance for mins, pulses expected to return to the same level each cycle

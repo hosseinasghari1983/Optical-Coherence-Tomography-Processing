@@ -2,6 +2,7 @@ import queue
 import Collect as col
 import Processing as proc
 import Visualize as vis
+# import DumbCollect as dumb
 import time
 
 scales = [.02, 1, 1, 1]  # set on scope
@@ -23,7 +24,8 @@ processing = proc.Processing(config, raw_queue, proc_queue, framed_queue)
 visualize = vis.Visualize(config, proc_queue, framed_queue)
 
 collect.start()
-time.sleep(5)
+# dumb_col.start()
+time.sleep(3)
 processing.start()
 visualize.run()
 
