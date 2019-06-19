@@ -1,5 +1,4 @@
 import numpy as np
-import pyfftw
 from threading import Thread
 import threading
 import multiprocessing
@@ -7,26 +6,27 @@ import time
 import matplotlib.pyplot as plt
 from scipy import interpolate
 
+#GPU FFT STUFF
+#from reikna.fft import FFT
+
+
 
 class Processing(Thread):
 
-    def __init__(self, config, raw_queue, proc_queue):
+    def __init__(self, config, raw_queue, proc_queue, framed_queue):
         Thread.__init__(self)
         # self.period = config['settings'][2] * 8000
-        self.period = 200
+        self.period = config['period_guess']
         self.raw_queue = raw_queue
         self.proc_queue = proc_queue
+        self.framed_queue = framed_queue
         self.config = config
         self._stopevent = threading.Event()
-        pyfftw.config.NUM_THREADS = multiprocessing.cpu_count()
-        np.fft = pyfftw.interfaces.numpy_fft
-        pyfftw.interfaces.cache.enable()
         #init with frames per second, resolution, etc
 
     def run(self):
         # not self._stopevent.isSet()
         run = True
-        pts = self.config['frame_length'] * self.config['frame_count']
         while run:
             # waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['record_length']*self.config['interp_factor'])))
             # waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['frame_length']*self.config['interp_factor'])))
@@ -34,10 +34,15 @@ class Processing(Thread):
             print("Processing...")
             t = time.time()
             waveform = self.raw_queue.get()
-            func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
-            waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
+
+            if self.config['interp_factor'] > 1:
+                pts = self.config['record_length'] * self.config['frame_count']
+                func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
+                waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
+
             waveform = self.framing(waveform)
 
+            self.framed_queue.put(waveform)
             # with self.raw_queue.mutex:
             #     self.raw_queue.queue.clear()
             # waveform = np.copy(waveform)

@@ -9,17 +9,18 @@ y_pos = [0, 0, 0, 0]  # set on scope
 sample_rate = 25e6
 #'10.5.97.239'
 config = {'ip': '192.168.0.2', 'channels': [1, 0, 1, 0], 'settings': [scales, y_pos, sample_rate, 0],
-          'record_length': 5e5, 'samp_clk_ch': 2, 'data_ch': 1, 'laser_ref_ch': 3, 'frame_count': 2500,
-          'interp_factor': 1, 'win_ard': 'COM5', 'frame_length': 200}
+          'record_length': 5e5, 'frame_count': 1, 'samp_clk_ch': 2, 'data_ch': 1,
+          'interp_factor': 1, 'win_ard': 'COM5', 'period_guess': 210, 'debug_framing': True}
 # frame length is record_length / frame_count
 
 # LIFO VS FIFO?
 raw_queue = queue.LifoQueue()
+framed_queue = queue.LifoQueue()
 proc_queue = queue.Queue()
 
 collect = col.Collection(config, raw_queue)
-processing = proc.Processing(config, raw_queue, proc_queue)
-visualize = vis.Visualize(config, proc_queue)
+processing = proc.Processing(config, raw_queue, proc_queue, framed_queue)
+visualize = vis.Visualize(config, proc_queue, framed_queue)
 
 collect.start()
 time.sleep(5)

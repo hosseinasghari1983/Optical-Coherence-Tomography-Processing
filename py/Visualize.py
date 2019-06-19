@@ -13,11 +13,12 @@ import numpy as np
 
 
 class Visualize(Thread):
-    def __init__(self, config, proc_queue):
+    def __init__(self, config, proc_queue, framed_queue):
         # matplotlib.use('Qt4Agg')
         # matplotlib.interactive(True)
         Thread.__init__(self)
         self.proc_queue = proc_queue
+        self.framed_queue = framed_queue
         self.config = config
         self._stopevent = threading.Event()
 
@@ -26,16 +27,29 @@ class Visualize(Thread):
     def run(self):
         # self.slices()
         # self.top_slice()
-        proc = self.proc_queue.get(True)
-        after_fft = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
-        while True:
-            try:
-                proc = self.proc_queue.get(False)
-                after_fft.set_data(proc[:, :])
-                plt.draw()
-            except queue.Empty:
-                pass
-            plt.pause(.2)
+        fig1 = plt.figure(1)
+        if self.config['debug_framing']:
+            proc = self.framed_queue.get(True)
+            after_fft = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
+            while True:
+                try:
+                    proc = self.framed_queue.get(False)
+                    after_fft.set_data(proc[:, :])
+                    plt.draw()
+                except queue.Empty:
+                    pass
+                plt.pause(.2)
+        else:
+            proc = self.proc_queue.get(True)
+            after_fft = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
+            while True:
+                try:
+                    proc = self.proc_queue.get(False)
+                    after_fft.set_data(proc[:, :])
+                    plt.draw()
+                except queue.Empty:
+                    pass
+                plt.pause(.2)
 
         # mlab.test_contour3d()
         # mlab.show()
