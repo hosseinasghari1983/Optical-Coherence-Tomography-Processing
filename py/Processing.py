@@ -1,7 +1,7 @@
 import threading
 import time
 from threading import Thread
-
+from scipy import interpolate
 import numpy as np
 
 #GPU FFT STUFF
@@ -42,8 +42,8 @@ class Processing(Thread):
 
             if self.config['interp_factor'] > 1:
                 pts = self.config['record_length'] * self.config['frame_count']
-                func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
-                waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
+                # func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
+                # waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
 
             t = time.time()
 
@@ -58,7 +58,7 @@ class Processing(Thread):
             # print(waveform.shape)
             #
 
-            waveform = np.real(np.fft.ifft(waveform, axis=2, n=2000))  # Use this one
+            waveform = np.absolute(np.fft.ifft(waveform, axis=2, n=500))  # Use this one
 
             # waveform = np.array([np.absolute(np.fft.ifft(pulse)) for pulse in waveform])
             # waveform = np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row, n=1000))), waveform)))
@@ -180,7 +180,7 @@ class Processing(Thread):
         print(f'periods in wave {len(signal) / period}')
         intPeriod = int(period)
         # y_array = np.zeros((nSlices, intPeriod))
-        y_array = np.zeros((51, 50, intPeriod))
+        y_array = np.zeros((51, 51, intPeriod))
 
         # for i in range(nSlices):  # save each slice as row
         #     start = int(i * period)  # note that one value may be lost every now and then, as the period is not an integer number of samples. this is done to make sure all rows have the same number of columns
@@ -201,7 +201,7 @@ class Processing(Thread):
 
         pulsesPerLine = nSlices/50
 
-        for p in range(0,nSlices):
+        for p in range(0, nSlices):
             start = int(p * period)
             rowN = int(p/pulsesPerLine)
             col = p - int(rowN*pulsesPerLine)

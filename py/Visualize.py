@@ -1,15 +1,15 @@
 import queue
 import threading
+# import matplotlib
+import time
 from threading import Thread
-import PyQt5
-# import vtk
-from mayavi import mlab
+
 # import mayavi as may
 # from mayavi import mlab
 import matplotlib.pyplot as plt
-# import matplotlib
-import time
 import numpy as np
+# import vtk
+from mayavi import mlab
 
 
 def cut_data(proc, layers):
@@ -31,21 +31,21 @@ class Visualize(Thread):
 
     def run(self):
         # proc = self.proc_queue.get(True)
-        # self.plot_4d()
+        self.plot_4d()
         # self.after_fft()
-        self.top_slice()
+        # self.top_slice()
         # After FFT PLOT
         # plt.figure(25)
 
     def after_fft(self):
-        proc = self.proc_queue.get(True)[0,:,25:1000]
+        proc = self.proc_queue.get(True)[0, :, 25:1000]
         # proc = cut_data(proc, 20)
         print(f'first proc is {proc.shape}')
         after_fft = plt.imshow(proc, aspect='auto', cmap='jet')
         slice = 0
         while True:
             try:
-                proc = self.proc_queue.get(False)[slice,:,25:1000]
+                proc = self.proc_queue.get(False)[slice, :, 25:1000]
                 # proc = cut_data(proc, 20)
                 after_fft.set_data(proc)
                 plt.draw()
@@ -53,19 +53,19 @@ class Visualize(Thread):
                 pass
             plt.pause(.05)
             slice += 1
-            slice = slice%50
+            slice = slice % 50
 
     def top_slice(self):
         fig1 = plt.figure(1)
         plt.title('Top Level Plot')
         plt.ion()
         proc = self.proc_queue.get(True)
-        proc[:,:,1000:]=0
-        proc[:,:,0:25] = 0
-        #max_val = np.amax(proc)
-        #proc = proc / max_val
-        proc = np.argmin(proc, axis=2)
-        top_obj = plt.imshow(proc[:,:], aspect='auto', cmap='jet')
+        proc[:, :, 1000:] = 0
+        proc[:, :, 0:25] = 0
+        # max_val = np.amax(proc)
+        # proc = proc / max_val
+        proc = np.argmax(proc, axis=2)
+        top_obj = plt.imshow(proc[:, :], aspect='auto', cmap='jet')
         run = True
         count = 0
         while run:
@@ -76,16 +76,16 @@ class Visualize(Thread):
             try:
                 im_name = 'top' + str(count)
                 proc = self.proc_queue.get(False)
-                proc[:,:,1000:]=0
-                proc[:,:, 0:25] = 0
+                proc[:, :, 1000:] = 0
+                proc[:, :, 0:25] = 0
 
-                proc = np.argmin(proc, axis=2)
-                
-                #max_val = np.amax(proc)
+                proc = np.argmax(proc, axis=2)
 
-                #proc = proc / max_val
-                #print(f'with max_val {max_val}')
-                top_obj.set_data(proc[:,:])
+                # max_val = np.amax(proc)
+
+                # proc = proc / max_val
+                # print(f'with max_val {max_val}')
+                top_obj.set_data(proc[:, :])
                 # plt.savefig(f'temp/{im_name}', bbox_inches='tight')
                 count += 1
                 plt.draw()
@@ -95,39 +95,53 @@ class Visualize(Thread):
             # run = False
 
     def plot_4d(self):
-        s = self.proc_queue.get(True)[:, :, 200:650]
+        s = self.proc_queue.get(True)[:, :, 8:250]
 
         # s = cut_data(s, 20)
         plane = mlab.pipeline.image_plane_widget(mlab.pipeline.scalar_field(s),
                                                  plane_orientation='z_axes',
-                                                 slice_index=425,
+                                                 slice_index=15,
+                                                 extent=[0, 1, 0, 1, 0, 1],
+                                                 colormap='spectral'
                                                  )
 
         plane_y = mlab.pipeline.image_plane_widget(mlab.pipeline.scalar_field(s),
-                                                 plane_orientation='y_axes',
-                                                 slice_index=25,
-                                                 )
-
+                                                   plane_orientation='y_axes',
+                                                   slice_index=25,
+                                                   extent=[0, 1, 0, 1, 0, 1],
+                                                   colormap='spectral'
+                                                   )
         # mlab.volume_slice(s, plane_orientation='z_axes', slice_index=10)
 
-        vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(s))
+        # vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(s), vmin=0.2, vmax=0.7)
+
+        # mlab.axes(extent=[0, 1, 0, 1, 0, 1])
+        # plane.actor.actor.scale = (0.1, 1.0, 1.0)
+        # plane_y.actor.actor.scale = (0.1, 1.0, 1.0)
+        # vol.actor.actor.scale = (0.1, 1.0, 1.0)
 
         mlab.outline()
 
-        @mlab.animate(delay=250)
+        @mlab.animate(delay=100)
         def anim():
             global s
             while True:
                 try:
-                    s = self.proc_queue.get(False)[:, :, 200:650]
+                    s = self.proc_queue.get(False)[:, :, 8:250]
+                    # s[:, :, 1000:] = 0
+                    # s[:, :, 0:25] = 0
                     # s = cut_data(s, 20)
                     plane_y.mlab_source.scalars = s
                     plane.mlab_source.scalars = s
-                    vol.mlab_source.scalars = s
+                    # vol.mlab_source.scalars = s
+                    # mlab.axes(extent=[0, 1, 0, 1, 0, 1])
+                    # plane.actor.actor.scale = (0.1, 1.0, 1.0)
+                    # plane_y.actor.actor.scale = (0.1, 1.0, 1.0)
+                    # vol.actor.actor.scale = (0.1, 1.0, 1.0)
                     yield
                 except queue.Empty:
                     pass
-                time.sleep(.25)
+                time.sleep(.1)
         anim()
         mlab.show()
 
