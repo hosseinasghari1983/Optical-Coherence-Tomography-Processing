@@ -67,8 +67,8 @@ class Processing(Thread):
                 heights = avg - heights
                 heights = heights.astype(int)
 
-            for row in range(51):
-                for col in range(51):
+            for row in range(101):
+                for col in range(101):
                     waveform[row, col, :] = np.roll(waveform[row, col, :], heights[row, col])
                     #waveform[row, col, :] =
 
@@ -192,14 +192,14 @@ class Processing(Thread):
         print(f'periods in wave {len(signal) / period}')
         intPeriod = int(period)
         # y_array = np.zeros((nSlices, intPeriod))
-        y_array = np.zeros((51, 51, intPeriod))
+        y_array = np.zeros((101, 101, intPeriod))
 
         # for i in range(nSlices):  # save each slice as row
         #     start = int(i * period)  # note that one value may be lost every now and then, as the period is not an integer number of samples. this is done to make sure all rows have the same number of columns
         #     y_array[i, :] = signal[start:(start + intPeriod)]
 
         # fill = time.time()
-        startPulse = int(nSlices/100)
+        # startPulse = int(nSlices/100)
 
         # for p in range(startPulse,nSlices-startPulse):
         #     start = int(p * period)
@@ -211,7 +211,7 @@ class Processing(Thread):
 
         #     y_array[lineN,col,:] = signal[start: (start + intPeriod)]
 
-        pulsesPerLine = nSlices/50
+        pulsesPerLine = nSlices/100
 
         for p in range(0, nSlices):
             start = int(p * period)

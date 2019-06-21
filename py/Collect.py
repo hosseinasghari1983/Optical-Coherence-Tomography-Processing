@@ -68,7 +68,7 @@ class Collection(Thread):
         # print(f'encoding data type is {self.encoding}')
 
         self.scope.write('HORizontal:MODE:SAMPLERate ' + str(sample_rate))  # Sets sample rate
-        self.scope.write('HORizontal:MODE:record_length ' + str(500000))  # Number of samples
+        self.scope.write('HORizontal:MODE:record_length ' + str(self.config['record_length']))  # Number of samples
 
         # self.config['record_length'] = self.scope.query("HORizontal:MODE:record_length?")
         # self.scope.write("DATa:STARt 1;stop " + str(record_length) + ";:data:encdg rpbinary;:DESE 1;:*ESE 1")

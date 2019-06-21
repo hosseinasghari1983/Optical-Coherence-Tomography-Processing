@@ -102,14 +102,14 @@ class Visualize(Thread):
                                                  plane_orientation='z_axes',
                                                  slice_index=15,
                                                  extent=[0, 1, 0, 1, 0, 1],
-                                                 colormap='spectral'
+                                                 colormap='jet'
                                                  )
 
         plane_y = mlab.pipeline.image_plane_widget(mlab.pipeline.scalar_field(s),
                                                    plane_orientation='y_axes',
                                                    slice_index=25,
                                                    extent=[0, 1, 0, 1, 0, 1],
-                                                   colormap='spectral'
+                                                   colormap='jet'
                                                    )
         # mlab.volume_slice(s, plane_orientation='z_axes', slice_index=10)
 
