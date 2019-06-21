@@ -29,6 +29,7 @@ class Processing(Thread):
         # np.fft = pyfftw.interfaces.numpy_fft
         # pyfftw.interfaces.cache.enable()
         run = True
+        heights = None
         while run:
             # waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['record_length']*self.config['interp_factor'])))
             # waveform = np.reshape(self.raw_queue.get(), (int(self.config['frame_count']), int(self.config['frame_length']*self.config['interp_factor'])))
@@ -59,6 +60,17 @@ class Processing(Thread):
             #
 
             waveform = np.absolute(np.fft.ifft(waveform, axis=2, n=500))  # Use this one
+
+            if heights is None:
+                heights = np.argmax(waveform[:, :, 50:250], axis=2)
+                avg = np.average(heights)
+                heights = avg - heights
+                heights = heights.astype(int)
+
+            for row in range(51):
+                for col in range(51):
+                    waveform[row, col, :] = np.roll(waveform[row, col, :], heights[row, col])
+                    #waveform[row, col, :] =
 
             # waveform = np.array([np.absolute(np.fft.ifft(pulse)) for pulse in waveform])
             # waveform = np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row, n=1000))), waveform)))

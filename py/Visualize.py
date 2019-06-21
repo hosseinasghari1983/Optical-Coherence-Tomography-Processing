@@ -113,7 +113,7 @@ class Visualize(Thread):
                                                    )
         # mlab.volume_slice(s, plane_orientation='z_axes', slice_index=10)
 
-        # vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(s), vmin=0.2, vmax=0.7)
+        #vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(s), vmin=0.2, vmax=0.7)
 
         # mlab.axes(extent=[0, 1, 0, 1, 0, 1])
         # plane.actor.actor.scale = (0.1, 1.0, 1.0)
@@ -133,7 +133,7 @@ class Visualize(Thread):
                     # s = cut_data(s, 20)
                     plane_y.mlab_source.scalars = s
                     plane.mlab_source.scalars = s
-                    # vol.mlab_source.scalars = s
+                    #vol.mlab_source.scalars = s
                     # mlab.axes(extent=[0, 1, 0, 1, 0, 1])
                     # plane.actor.actor.scale = (0.1, 1.0, 1.0)
                     # plane_y.actor.actor.scale = (0.1, 1.0, 1.0)
