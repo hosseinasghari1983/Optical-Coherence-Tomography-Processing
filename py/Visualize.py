@@ -95,7 +95,7 @@ class Visualize(Thread):
             # run = False
 
     def plot_4d(self):
-        s = self.proc_queue.get(True)[:, :, 8:250]
+        s = self.proc_queue.get(True)[:, :, 10:150]
 
         # s = cut_data(s, 20)
         plane = mlab.pipeline.image_plane_widget(mlab.pipeline.scalar_field(s),
@@ -113,7 +113,7 @@ class Visualize(Thread):
                                                    )
         # mlab.volume_slice(s, plane_orientation='z_axes', slice_index=10)
 
-        #vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(s), vmin=0.2, vmax=0.7)
+        # vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(s))
 
         # mlab.axes(extent=[0, 1, 0, 1, 0, 1])
         # plane.actor.actor.scale = (0.1, 1.0, 1.0)
@@ -122,18 +122,18 @@ class Visualize(Thread):
 
         mlab.outline()
 
-        @mlab.animate(delay=100)
+        @mlab.animate(delay=50)
         def anim():
             global s
             while True:
                 try:
-                    s = self.proc_queue.get(False)[:, :, 8:250]
+                    s = self.proc_queue.get(False)[:, :, 10:150]
                     # s[:, :, 1000:] = 0
                     # s[:, :, 0:25] = 0
                     # s = cut_data(s, 20)
                     plane_y.mlab_source.scalars = s
                     plane.mlab_source.scalars = s
-                    #vol.mlab_source.scalars = s
+                    # vol.mlab_source.scalars = s
                     # mlab.axes(extent=[0, 1, 0, 1, 0, 1])
                     # plane.actor.actor.scale = (0.1, 1.0, 1.0)
                     # plane_y.actor.actor.scale = (0.1, 1.0, 1.0)
@@ -141,7 +141,7 @@ class Visualize(Thread):
                     yield
                 except queue.Empty:
                     pass
-                time.sleep(.1)
+                time.sleep(.075)
         anim()
         mlab.show()
 

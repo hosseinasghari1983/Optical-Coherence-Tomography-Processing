@@ -17,7 +17,7 @@ config = {'ip': '192.168.0.2', 'channels': [1, 0, 0, 1], 'settings': [scales, y_
 # LIFO VS FIFO?
 raw_queue = queue.LifoQueue()
 framed_queue = queue.LifoQueue()
-proc_queue = queue.Queue()
+proc_queue = queue.LifoQueue()
 
 collect = col.Collection(config, raw_queue)
 processing = proc.Processing(config, raw_queue, proc_queue, framed_queue)

@@ -59,18 +59,18 @@ class Processing(Thread):
             # print(waveform.shape)
             #
 
-            waveform = np.absolute(np.fft.ifft(waveform, axis=2, n=500))  # Use this one
+            waveform = np.absolute(np.fft.ifft(waveform, axis=2, n=300))  # Use this one
 
-            if heights is None:
-                heights = np.argmax(waveform[:, :, 50:250], axis=2)
-                avg = np.average(heights)
-                heights = avg - heights
-                heights = heights.astype(int)
-
-            for row in range(101):
-                for col in range(101):
-                    waveform[row, col, :] = np.roll(waveform[row, col, :], heights[row, col])
-                    #waveform[row, col, :] =
+            # if heights is None:
+            #     heights = np.argmax(waveform[:, :, 40:150], axis=2)
+            #     avg = np.average(heights)
+            #     heights = avg - heights
+            #     heights = heights.astype(int)
+            #
+            # for row in range(101):
+            #     for col in range(101):
+            #         waveform[row, col, :] = np.roll(waveform[row, col, :], heights[row, col])
+            #         #waveform[row, col, :] =
 
             # waveform = np.array([np.absolute(np.fft.ifft(pulse)) for pulse in waveform])
             # waveform = np.array(list(map(lambda row: np.absolute(np.fft.fftshift(np.fft.ifft(row, n=1000))), waveform)))
