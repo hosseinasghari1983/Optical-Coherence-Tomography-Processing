@@ -105,19 +105,16 @@ class Collection(Thread):
 
         print('Rel WL process.')
         self.scope.write('DATa:SOUrce CH' + str(self.config["data_ch"]))
-        self.scope.write('DISplay:WAVEform OFF')
+        self.scope.write('DISplay:WAVEform ON')
         # self.scope.timeout = 10
 
         # del self.scope.timeout
         self.scope.write('MASK:COUNt RESET')
-        self.scope.write('CURVE?')
-        self.scope.write('CURVE?')
-
-        time.sleep(1)
-
+        self.scope.write('CURVEStream?')
+        # self.scope.write('CURVE?')
         # visa.log_to_screen()
         # self.ard.write(1)  # To trigger signal generator
-        time.sleep(0.2)
+        # time.sleep(0.2)
         run = True
         count = 0
         while run:
@@ -128,8 +125,8 @@ class Collection(Thread):
 
             # print('Sent trigger to ard')
             # time.sleep(0.1)
-            osc_data = self.scope.read_raw(None)  # int(self.config['frame_count']*self.config['record_length']))
-            self.scope.write('CURVE?')
+            osc_data = self.scope.read_bytes(int(2e6 + 11))  # int(self.config['frame_count']*self.config['record_length']))
+            # self.scope.write('CURVE?')
 
             # time.sleep(0.1)
             # self.ard.write(1)  # To trigger signal generator
@@ -138,13 +135,16 @@ class Collection(Thread):
             # print('Read from scope')
             # print('length of osc_data'+str(len(osc_data)))
             # waveform = np.array(struct.unpack('%sB' % len(osc_data), osc_data))
-            waveform = np.frombuffer(osc_data, np.dtype(np.ubyte))
+            waveform = np.frombuffer(osc_data, np.dtype(np.byte))
+            # print(f'first 20: {waveform[:20]}')
+            # print(f'last 20: {waveform[-20:]}')
+
             # fig2 = plt.figure(8)
             # plt.plot(waveform)
             # plt.clf()
             # plt.show()
             # waveform = np.invert(waveform)  #inverting amplifier
-            waveform = waveform[8:-1]  # Remove header information, first 8, last 1
+            waveform = waveform[9:-2]  # Remove header information, first 8, last 1
             print(waveform)
             print(waveform.shape)
 
@@ -173,7 +173,7 @@ class Collection(Thread):
             # print(f'sent waveform to queue {waveform}')
             # time.sleep(0.1)
 
-        # self.encoding = self.scope.query('DATa:ENCdg?')
+        self.encoding = self.scope.query('DATa:ENCdg?')
         # stop curvestream
 
     def join(self, timeout=None):

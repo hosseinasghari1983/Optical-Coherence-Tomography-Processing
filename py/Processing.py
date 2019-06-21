@@ -116,7 +116,7 @@ class Processing(Thread):
         max = np.argmax(ahead)
         min = np.argmin(ahead)
 
-        span = ahead[max] - ahead[min]
+        span = int(ahead[max]) - int(ahead[min])
 
         maxes = np.argwhere(ahead > (ahead[max] - span * 0.25))  # 20% tolerance for max, as fringes can change rapidly
         mins = np.argwhere(ahead < (ahead[
