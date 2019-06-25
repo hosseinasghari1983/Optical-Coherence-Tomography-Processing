@@ -127,7 +127,7 @@ class Visualize(Thread):
             global s
             while True:
                 try:
-                    s = self.proc_queue.get(False)[:, :, 10:150]
+                    s = self.proc_queue.get(False)[:, :, 20:95]#20:150]
                     # s[:, :, 1000:] = 0
                     # s[:, :, 0:25] = 0
                     # s = cut_data(s, 20)

@@ -43,8 +43,8 @@ class Processing(Thread):
 
             if self.config['interp_factor'] > 1:
                 pts = self.config['record_length'] * self.config['frame_count']
-                # func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
-                # waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
+                func = interpolate.interp1d(np.linspace(0, pts, pts), waveform, kind='cubic')
+                waveform = func(np.linspace(0, pts, pts * self.config['interp_factor']))
 
             t = time.time()
 
@@ -59,7 +59,7 @@ class Processing(Thread):
             # print(waveform.shape)
             #
 
-            waveform = np.absolute(np.fft.ifft(waveform, axis=2, n=300))  # Use this one
+            waveform = np.absolute(np.fft.fft(waveform, axis=2, n=200))  # Use this one
 
             # if heights is None:
             #     heights = np.argmax(waveform[:, :, 40:150], axis=2)
@@ -106,7 +106,7 @@ class Processing(Thread):
 
         period = self.period  # initial period guess, in sample units
 
-        ahead = waveform[0:int(period * 5.5)]  # seek forward two and something periods
+        ahead = waveform[0:int(period * 5.5 * self.config['interp_factor'])]  # seek forward two and something periods
 
         # fig1 = plt.figure(22)
         # plt.clf()
@@ -118,9 +118,9 @@ class Processing(Thread):
 
         span = int(ahead[max]) - int(ahead[min])
 
-        maxes = np.argwhere(ahead > (ahead[max] - span * 0.25))  # 20% tolerance for max, as fringes can change rapidly
+        maxes = np.argwhere(ahead > (ahead[max] - span * 0.35))  # 20% tolerance for max, as fringes can change rapidly
         mins = np.argwhere(ahead < (ahead[
-                                        min] + span * 0.15))  # 10% tolerance for mins, pulses expected to return to the same level each cycle
+                                        min] + span * 0.25))  # 10% tolerance for mins, pulses expected to return to the same level each cycle
 
         initialMax = maxes[
             0, 0]  # make sure we start from a peak, this guarantess that the next minimum is a full valley, not truncated at the beggining
@@ -131,7 +131,10 @@ class Processing(Thread):
         lfirstMin = mins[firstMinEnd - 1, 0]
 
         fnextMin = mins[firstMinEnd, 0]  # first of the next min group
-        nextMax = maxes[np.searchsorted(maxes[:, 0], fnextMin), 0]  # first max after the next min group
+        try:
+            nextMax = maxes[np.searchsorted(maxes[:, 0], fnextMin), 0]  # first max after the next min group
+        except:
+            nextMax=fnextMin
         nextMinEnd = np.searchsorted(mins[:, 0], nextMax)  # now we know the end of the next min group
         lnextMin = mins[nextMinEnd - 1, 0]
 
@@ -217,7 +220,10 @@ class Processing(Thread):
             start = int(p * period)
             rowN = int(p/pulsesPerLine)
             col = p - int(rowN*pulsesPerLine)
-            y_array[rowN, col, :] = signal[start:(start + intPeriod)]
+            try:
+                y_array[rowN, col, :] = signal[start:(start + intPeriod)]
+            except:
+                d=1
 
         # for row in range(49):
         #     for col in range(50):
